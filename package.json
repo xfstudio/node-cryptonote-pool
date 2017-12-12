@@ -5,7 +5,7 @@
     "author": "Matthew Little",
     "repository": {
         "type": "git",
-        "url": "https://github.com/zone117x/node-cryptonote-pool.git"
+        "url": "https://github.com/xfstudio/node-cryptonote-pool.git"
     },
     "dependencies": {
         "bignum": "0.12.5",
@@ -14,7 +14,7 @@
         "cli-color": "1.1.0",
         "dateformat": "1.0.12",
         "base58-native": "0.1.4",
-        "multi-hashing": "git://github.com/zone117x/node-multi-hashing.git",
+        "multi-hashing": "git://github.com/xfstudio/node-multi-hashing.git",
         "cryptonote-util": "git://github.com/Snipa22/node-cryptonote-util#xmr-Nan-2.0"
     },
     "engines": {

@@ -1,0 +1,32 @@
+version: '2.1'
+
+services:
+  pool:
+    image: kukunin/node-cryptonote-pool:latest
+    ports:
+      - "3333:3333"
+      - "5555:5555"
+      - "7777:7777"
+      - "9999:8888"
+      - "8117:8117"
+    links:
+      - redis
+    volumes:
+      - /Users/pro/workplace/nodejs/node-cryptonote-pool/data:/data
+    networks:
+      app_net:
+        ipv4_address: 10.200.10.10
+  redis:
+    build: redis
+    networks:
+      app_net:
+        ipv4_address: 10.200.10.100
+
+networks:
+  app_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: 10.200.10.0/24
+        gateway: 10.200.10.1
