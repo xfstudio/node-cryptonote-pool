@@ -20,7 +20,7 @@
         "underscore": "^1.8.3",
         "utf-8-validate": "^3.0.1",
         "ws": "^3.2.0",
-        "multi-hashing": "git://github.com/xfstudio/node-multi-hashing-aesni.git",
+        "unomp-multi-hashing": "git://github.com/Kukunin/node-multi-hashing.git#conservative",
         "cryptonote-util": "git://github.com/xfstudio/node-cryptonote-util#xmr-Nan-2.0"
     },
     "engines": {
