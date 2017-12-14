@@ -4,6 +4,7 @@ var os = require('os');
 
 var redis = require('redis');
 
+require('heapdump');
 
 require('./lib/configReader.js');
 
@@ -122,6 +123,51 @@ function checkRedisVersion(callback){
     });
 }
 
+function spawnCluster({ clusters, workerType, onWorker }) {
+    var numForks = (function(){
+        if (!clusters)
+            return 1;
+        if (clusters === 'auto')
+            return os.cpus().length;
+        if (isNaN(clusters))
+            return 1;
+        return clusters;
+    })();
+
+    var workers = {};
+
+    var createWorker = function(forkId){
+        var worker = cluster.fork({
+            workerType: workerType,
+            forkId: forkId
+        });
+        worker.forkId = forkId;
+        worker.type = workerType;
+        workers[forkId] = worker;
+        worker.on('exit', function(code, signal){
+            log('error', logSystem, 'Fork %s of %s died, spawning replacement worker...',
+                [forkId, workerType]);
+            setTimeout(function(){
+                createWorker(forkId);
+            }, 2000);
+        });
+        if(typeof onWorker == 'function') {
+            onWorker(worker);
+        }
+    };
+
+    var i = 1;
+    var spawnInterval = setInterval(function(){
+        createWorker(i.toString());
+        i++;
+        if (i - 1 === numForks){
+            clearInterval(spawnInterval);
+            log('info', logSystem, 'Workers for %s spawned on %d thread(s)',
+                [workerType, numForks]);
+        }
+    }, 10);
+}
+
 function spawnPoolWorkers(){
 
     if (!config.poolServer || !config.poolServer.enabled || !config.poolServer.ports || config.poolServer.ports.length === 0) return;
@@ -131,54 +177,23 @@ function spawnPoolWorkers(){
         return;
     }
 
-
-    var numForks = (function(){
-        if (!config.poolServer.clusterForks)
-            return 1;
-        if (config.poolServer.clusterForks === 'auto')
-            return os.cpus().length;
-        if (isNaN(config.poolServer.clusterForks))
-            return 1;
-        return config.poolServer.clusterForks;
-    })();
-
-    var poolWorkers = {};
-
-    var createPoolWorker = function(forkId){
-        var worker = cluster.fork({
-            workerType: 'pool',
-            forkId: forkId
-        });
-        worker.forkId = forkId;
-        worker.type = 'pool';
-        poolWorkers[forkId] = worker;
-        worker.on('exit', function(code, signal){
-            log('error', logSystem, 'Pool fork %s died, spawning replacement worker...', [forkId]);
-            setTimeout(function(){
-                createPoolWorker(forkId);
-            }, 2000);
-        }).on('message', function(msg){
-            switch(msg.type){
+    spawnCluster({
+        clusters: config.poolServer.clusterForks,
+        workerType: 'pool',
+        onWorker: function(worker) {
+            worker.on('message', function(msg){
+                switch(msg.type){
                 case 'banIP':
                     Object.keys(cluster.workers).forEach(function(id) {
-                        if (cluster.workers[id].type === 'pool'){
+                        if (cluster.workers[id].type === 'pool') {
                             cluster.workers[id].send({type: 'banIP', ip: msg.ip});
                         }
                     });
                     break;
-            }
-        });
-    };
-
-    var i = 1;
-    var spawnInterval = setInterval(function(){
-        createPoolWorker(i.toString());
-        i++;
-        if (i - 1 === numForks){
-            clearInterval(spawnInterval);
-            log('info', logSystem, 'Pool spawned on %d thread(s)', [numForks]);
+                }
+            });
         }
-    }, 10);
+    });
 }
 
 function spawnBlockUnlocker(){
@@ -215,14 +230,9 @@ function spawnPaymentProcessor(){
 function spawnApi(){
     if (!config.api || !config.api.enabled) return;
 
-    var worker = cluster.fork({
+    spawnCluster({
+        clusters: config.api.clusterForks,
         workerType: 'api'
-    });
-    worker.on('exit', function(code, signal){
-        log('error', logSystem, 'API died, spawning replacement...');
-        setTimeout(function(){
-            spawnApi();
-        }, 2000);
     });
 }
 
